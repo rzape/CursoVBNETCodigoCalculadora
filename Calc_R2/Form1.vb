@@ -1,7 +1,11 @@
-﻿﻿' NOTAS
-' MP1: 2023-07-03  La visualización por pantalla de los valores calculados se debe
-'                  trabajar en una subrutina a fin de truncar o limitar los valores
-'                  a visualizar.
+﻿''######################################################################################################
+'' NOTAS
+'' MODIF_PROG: 2023-07-03  La visualización por pantalla de los valores calculados se debe
+''                         trabajar en una subrutina a fin de truncar o limitar los valores
+''                         a visualizar.
+'' MODIF_PROG: 2023-07-06  Se corrige codigo para sumar operandos de tipo entero y fraccion
+'' 
+''######################################################################################################
 Public Class Form1
     Private Const msgErrMat As String = "ERROR matemático"
     Private Const msgErrStx As String = "ERROR de sintaxis"
@@ -27,7 +31,10 @@ Public Class Form1
     Dim bNumeroIngresado As Boolean
     Dim bBarraFraccionPresente As Boolean
     Dim bFlagAlmacenarOperandoFraccionDos As Boolean
-
+    ' Variable para definir si el prim er operando es del tipo fracción o entero
+    Dim bPriOperTipoFraccion As Boolean
+    ' Variable para definir si el primer operando es del tipo fracción o entero
+    Dim bSegOperTipoFraccion As Boolean
 
 
 
@@ -111,7 +118,8 @@ Public Class Form1
                 End If
                 'modo fracción, guardar en memoria formato decimal
                 AlmacenaOperandoFraccionUnoEnMemoria()
-
+                ' Indica que es primer operando es fracción
+                bPriOperTipoFraccion = True
                 'Borra pantalla
                 Reinicia_tb_Display()
                 MuestraCeroEnDisplay()
@@ -120,6 +128,8 @@ Public Class Form1
             Else
                 'modo decimal, guardar en memoria formato decimal
                 AlmacenaOperando_aEnMemoria()
+                ' Indica que es primer operando es entero (en principio lo trunca)
+                bPriOperTipoFraccion = False
             End If
             ' Avisa que hay una operacion en curso
             bOperacionEnCurso = True
@@ -512,6 +522,7 @@ Public Class Form1
         Dim F2a, F2b, F2c As Integer
 
 
+
         If bModoFraccion = True Then
             If bFraccionErrorIngreso = True Then
                 'Si error, entonces
@@ -525,24 +536,35 @@ Public Class Form1
                 Exit Sub
             End If
 
-            'modo fracción
-            'habilita almacenar el proximo numero Fraccion Dos
-            If bFlagAlmacenarOperandoFraccionDos = True Then
-                ' deshabilita almacenar el proximo numero como operando b 
-                bFlagAlmacenarOperandoFraccionDos = False
-                'modo fracción, guardar en memoria formato decimal
+            'modo fracción en el segundo operando
+            If bPriOperTipoFraccion = False Then
+                ' Si el primer operando era un decimal:
+                ' 1.- El formato se debe cambiar a fracción            
+                iFraccionA(0) = 0
+                iFraccionA(1) = dOperando_a
+                iFraccionA(2) = 1
+                ' 2.- Se debe cargar el segundo operando fraccional
                 AlmacenaOperandoFraccionDosEnMemoria()
             End If
-            F1a = iFraccionA(0)
-            F1b = iFraccionA(1)
-            F1c = iFraccionA(2)
 
-            F2a = iFraccionB(0)
-            F2b = iFraccionB(1)
-            F2c = iFraccionB(2)
-        Else
-            'modo decimal, guardar en memoria formato decimal
-            If bFlagAlmacenarOperando_b = True Then
+            'modo fracción desde el primer operando
+            'habilita almacenar el proximo numero Fraccion Dos
+            If bFlagAlmacenarOperandoFraccionDos = True Then
+                    ' deshabilita almacenar el proximo numero como operando b 
+                    bFlagAlmacenarOperandoFraccionDos = False
+                    'modo fracción, guardar en memoria formato decimal
+                    AlmacenaOperandoFraccionDosEnMemoria()
+                End If
+                F1a = iFraccionA(0)
+                F1b = iFraccionA(1)
+                F1c = iFraccionA(2)
+
+                F2a = iFraccionB(0)
+                F2b = iFraccionB(1)
+                F2c = iFraccionB(2)
+            Else
+                'modo decimal, guardar en memoria formato decimal
+                If bFlagAlmacenarOperando_b = True Then
                 ' deshabilita almacenar el proximo numero como operando b 
                 bFlagAlmacenarOperando_b = False
 
@@ -788,6 +810,9 @@ Public Class Form1
         bOperando_b_EnMemoria = True
     End Sub
 
+
+
+
     Sub AlmacenaOperandoFraccionUnoEnMemoria()
 
         Dim iLargoCadena As Integer
@@ -800,24 +825,35 @@ Public Class Form1
 
         ' Para saber cuantas barras de fraccion, leemos iContadorBarraFraccional
         ' y luego podemos conocer cuantos números y tipo de fraccion tenemos
+        If iContadorBarraFraccional <> 0 Then
+            iLargoCadena = Len(tbDisplay.Text)
 
-        iLargoCadena = Len(tbDisplay.Text)
+            ' En este segmento obtengo las posiciones de los separadores de fraccion
+            ' primera posición
+            iPosBarraUno = InStr(tbDisplay.Text, "∟", CompareMethod.Text)
+            ' Segunda posición (si no hay, indicará cero)
+            iPosBarraDos = InStr((iPosBarraUno + 1), tbDisplay.Text, "∟", CompareMethod.Text)
+            ' En este segmento debo leer los dos o tres números de la fraccion de acuerdo 
+            ' a iContadorBarraFraccional
 
-        ' En este segmento obtengo las posiciones de los separadores de fraccion
-        ' primera posición
-        iPosBarraUno = InStr(tbDisplay.Text, "∟", CompareMethod.Text)
-        ' Segunda posición (si no hay, indicará cero)
-        iPosBarraDos = InStr((iPosBarraUno + 1), tbDisplay.Text, "∟", CompareMethod.Text)
-        ' En este segmento debo leer los dos o tres números de la fraccion de acuerdo 
-        ' a iContadorBarraFraccional
+            ' Primer número
+            ' Obtiene la cadena
+            sNumeroFormatoTexto = Mid(tbDisplay.Text, 1, (iPosBarraUno - 1))
+            ' Y la convierte a número
+            iFraccionA(0) = Val(sNumeroFormatoTexto)
 
-        ' Primer número
-        ' Obtiene la cadena
-        sNumeroFormatoTexto = Mid(tbDisplay.Text, 1, (iPosBarraUno - 1))
-        ' Y la convierte a número
-        iFraccionA(0) = Val(sNumeroFormatoTexto)
+        Else
+            ' Es decimal, lo convierte a número, luego a formato entero y luego lo trunca
+            iFraccionB(1) = Math.Truncate(CInt(Convierte(tbDisplay.Text)))
+        End If
 
         Select Case iContadorBarraFraccional
+            Case 0
+                ' Es un número entero
+                ' lo acomoda al formato b∟c = b∟1
+                iFraccionA(0) = 0
+                iFraccionA(2) = 1
+
             Case 1
                 ' Acomoda la fracción para que ocupe b∟c, y a = 0
                 iFraccionA(1) = iFraccionA(0)
@@ -840,7 +876,7 @@ Public Class Form1
         End Select
 
         'finalmente, chequea que el denominador sea distinto de cero
-        If iFraccionB(2) = 0 Then
+        If iFraccionA(2) = 0 Then
             bFraccionErrorIngreso = True
         End If
 
@@ -858,24 +894,39 @@ Public Class Form1
 
         ' Para saber cuantas barras de fraccion, leemos iContadorBarraFraccional
         ' y luego podemos conocer cuantos números y tipo de fraccion tenemos
+        ' Si es distinto de cero es una fracción, sino es un entero
+        If iContadorBarraFraccional <> 0 Then
 
-        iLargoCadena = Len(tbDisplay.Text)
+            iLargoCadena = Len(tbDisplay.Text)
 
-        ' En este segmento obtengo las posiciones de los separadores de fraccion
-        ' primera posición
-        iPosBarraUno = InStr(tbDisplay.Text, "∟", CompareMethod.Text)
-        ' Segunda posición (si no hay, indicará cero)
-        iPosBarraDos = InStr((iPosBarraUno + 1), tbDisplay.Text, "∟", CompareMethod.Text)
-        ' En este segmento debo leer los dos o tres números de la fraccion de acuerdo 
-        ' a iContadorBarraFraccional
+            ' En este segmento obtengo las posiciones de los separadores de fraccion
+            ' primera posición
+            iPosBarraUno = InStr(tbDisplay.Text, "∟", CompareMethod.Text)
+            ' Segunda posición (si no hay, indicará cero)
+            iPosBarraDos = InStr((iPosBarraUno + 1), tbDisplay.Text, "∟", CompareMethod.Text)
+            ' En este segmento debo leer los dos o tres números de la fraccion de acuerdo 
+            ' a iContadorBarraFraccional
 
-        ' Primer número
-        ' Obtiene la cadena
-        sNumeroFormatoTexto = Mid(tbDisplay.Text, 1, (iPosBarraUno - 1))
+            ' Primer número
+            ' Obtiene la cadena
+            sNumeroFormatoTexto = Mid(tbDisplay.Text, 1, (iPosBarraUno - 1))
+        Else
+            ' Es decimal, lo convierte a número, luego a formato entero y luego lo trunca
+            iFraccionB(1) = Math.Truncate(CInt(Convierte(tbDisplay.Text)))
+        End If
+
+
+
         ' Y la convierte a número
         iFraccionB(0) = Val(sNumeroFormatoTexto)
 
         Select Case iContadorBarraFraccional
+            Case 0
+                ' Es un número entero
+                ' lo acomoda al formato b∟c = b∟1
+                iFraccionB(0) = 0
+                iFraccionB(2) = 1
+
             Case 1
                 ' Si hay una sola barra, es de dos números
                 ' Acomoda la fracción para que ocupe b∟c, y a = 0
@@ -943,7 +994,10 @@ Public Class Form1
         bResultadoEnDisplay = False
         ' Flag de ingreso numero
         bNumeroIngresado = False
-        '
+        ' Indico que los operandos inicialmente son del tipo entero, no fraccion
+        bPriOperTipoFraccion = False
+        bSegOperTipoFraccion = False
+
     End Sub
     '=========================================================================================================
     ' INICIALIZACION
