@@ -1,315 +1,51 @@
-﻿''######################################################################################################
-'' NOTAS
-'' MODIF_PROG: 2023-07-03  La visualización por pantalla de los valores calculados se debe
-''                         trabajar en una subrutina a fin de truncar o limitar los valores
-''                         a visualizar.
-'' MODIF_PROG: 2023-07-06  Se corrige codigo para sumar operandos de tipo entero y fraccion
-'' 
-''######################################################################################################
+﻿'######################################################################################################
+' NOTAS
+' MODIF_PROG: 2023-07-03  La visualización por pantalla de los valores calculados se debe
+'                         trabajar en una subrutina a fin de truncar o limitar los valores
+'                         a visualizar.
+' MODIF_PROG: 2023-07-06  Se corrige codigo para sumar operandos de tipo entero y fraccion
+' 
+' MODIF_PROG: 2023-07-09  Se separa el código en módulos.
+'                         Se rediseña para trabajar con máquina de estados.
+'                         Se agregan y/o modifican operaciones "+","-","x" y "%"
+'                         Queda para agregar operaciones "/","sqrt","pot" y corregir operacion "CE"
+'######################################################################################################
 Public Class Form1
-    Private Const msgErrMat As String = "ERROR matemático"
-    Private Const msgErrStx As String = "ERROR de sintaxis"
-    '//////////////////////////////////////
-    ' Variables
-    '//////////////////////////////////////
-    Dim bPuntoDecimalPresente As Boolean
-    Dim bPosicionDigitoActualEsElPrimero As Boolean
-    Dim bDigitoActualContieneCero As Boolean
-    Dim bNumeroEn_tb_Display As Boolean
-    Dim bOperando_a_EnMemoria As Boolean
-    Dim bOperando_b_EnMemoria As Boolean
-    Dim bFlagBorraDisplayEnProximoIngreso As Boolean
-    Dim bOperacionEnCurso As Boolean
-    Dim bFlagAlmacenarOperando_b As Boolean
-    Dim bCalcularPorcentaje As Boolean
-    Dim bModoFraccion As Boolean
-    Dim bIngresoComponenteFraccion As Boolean
-    Dim bIngresoOperandoFraccionUno As Boolean
-    Dim bIngresoOperandoFraccionDos As Boolean
-    Dim bFraccionErrorIngreso As Boolean
-    Dim bResultadoEnDisplay As Boolean
-    Dim bNumeroIngresado As Boolean
-    Dim bBarraFraccionPresente As Boolean
-    Dim bFlagAlmacenarOperandoFraccionDos As Boolean
-    ' Variable para definir si el prim er operando es del tipo fracción o entero
-    Dim bPriOperTipoFraccion As Boolean
-    ' Variable para definir si el primer operando es del tipo fracción o entero
-    Dim bSegOperTipoFraccion As Boolean
 
 
-
-    Dim iContadorBarraFraccional As Integer
-    Dim iFraccionA(3) As Integer
-    Dim iFraccionB(3) As Integer
-
-
-    Dim dOperando_a As Double
-    Dim dOperando_b As Double
-    Dim sOperacion As String
-
-
-    '=========================================================================================================
-    ' CODIGO ASIGNADO A INGRESO POR TECLADO NUMERICO
-    '=========================================================================================================
-    ' El código se toma desde el evento KeyDown del textbox del display.
-    '
-    Private Sub TextBox1_KeyDown(sender As Object, e As KeyEventArgs) Handles tbDisplay.KeyDown
-        ' Si se ingresa por teclado numérico el "0"
-        'If e.KeyCode = Keys.NumPad0 Then
-        'Muestro un cero
-        'TextBox1.Text = 0
-        'o un codigo en dos lineas, forma 1
-        'TextBox1.Text= "2+2=" & VbcrLf & "4"
-        'o un codigo en dos lineas, forma 2
-        'Dim linea(2) As String
-        'linea(0) = "this is line1"
-        ' linea(1) = "this is line2"
-        ' TextBox1.Lines = linea
-        'CodigoNumeroCero()
-        'End If
-        Select Case e.KeyCode
-            Case Keys.Decimal
-                CodigoSeparadorDecimal()
-            Case Keys.NumPad0
-                CodigoNumeroCero()
-            Case Keys.NumPad1
-                CodigoNumeroUno()
-            Case Keys.NumPad2
-                CodigoNumeroDos()
-            Case Keys.NumPad3
-                CodigoNumeroTres()
-            Case Keys.NumPad4
-                CodigoNumeroCuatro()
-            Case Keys.NumPad5
-                CodigoNumeroCinco()
-            Case Keys.NumPad6
-                CodigoNumeroSeis()
-            Case Keys.NumPad7
-                CodigoNumeroSiete()
-            Case Keys.NumPad8
-                CodigoNumeroOcho()
-            Case Keys.NumPad9
-                CodigoNumeroNueve()
-
-        End Select
-    End Sub
     '=========================================================================================================
     ' CODIGO ASIGNADO A BOTONES DE OPERACIONES
     '=========================================================================================================
     Private Sub btnSumar_Click(sender As Object, e As EventArgs) Handles btnSumar.Click
-        ' Si no hay una operacion previa en curso, se guarda en memoria
-        ' el valor que se encuentre en display, y se asigna la operacion
-        ' sino solamente se modificará la operación a realizar con el operando
-        ' en memoria.
-        ' Si no se ingreso un numero nuevo (entonces en display esta el resultado
-        ' de una operación anterior)
-        If bOperacionEnCurso = False Then
-            If bModoFraccion = True Then
-                If bFraccionErrorIngreso = True Then
-                    'Si error, entonces
-                    tbDisplay.Text = msgErrMat
-                    'Sale del modo fraccion
-                    bModoFraccion = False
-                    ' Borra display en proximo ingreso de un numero
-                    bFlagBorraDisplayEnProximoIngreso = True
-                    ' pasa el foco al elemento tb_Display (barra parpadeando)
-                    tbDisplay.Select()
-                    Exit Sub
-                End If
-                'modo fracción, guardar en memoria formato decimal
-                AlmacenaOperandoFraccionUnoEnMemoria()
-                ' Indica que es primer operando es fracción
-                bPriOperTipoFraccion = True
-                'Borra pantalla
-                Reinicia_tb_Display()
-                MuestraCeroEnDisplay()
-                'Resetea el contador de fracciones
-                iContadorBarraFraccional = 0
-            Else
-                'modo decimal, guardar en memoria formato decimal
-                AlmacenaOperando_aEnMemoria()
-                ' Indica que es primer operando es entero (en principio lo trunca)
-                bPriOperTipoFraccion = False
-            End If
-            ' Avisa que hay una operacion en curso
-            bOperacionEnCurso = True
-        End If
-        ' define la operación a realizar como suma
-        sOperacion = "adicion"
-        If bModoFraccion = True Then
-            'modo fracción
-
-            'habilita almacenar el proximo numero Fraccion Dos
-            bFlagAlmacenarOperandoFraccionDos = True
-        Else
-            ' modo decimal...
-            ' habilita almacenar el proximo numero como operando b 
-            bFlagAlmacenarOperando_b = True
-        End If
-
-        ' Borra display en proximo ingreso de un numero
-        bFlagBorraDisplayEnProximoIngreso = True
-        ' pasa el foco al elemento tb_Display (barra parpadeando)
-        tbDisplay.Select()
+        ' Evento por operacion, no por ingreso de numero        
+        bNuevaOperacion = True
+        sBoton = "boton_+"
+        SM_Calculadora()
     End Sub
-
     Private Sub btnRestar_Click(sender As Object, e As EventArgs) Handles btnRestar.Click
-        ' Si no hay una operacion previa en curso, se guarda en memoria
-        ' el valor que se encuentre en display, y se asigna la operacion
-        ' sino solamente se modificará la operación a realizar con el operando
-        ' en memoria.
-        If bOperacionEnCurso = False Then
-            If bModoFraccion = True Then
-                If bFraccionErrorIngreso = True Then
-                    'Si error, entonces
-                    tbDisplay.Text = msgErrMat
-                    'Sale del modo fraccion
-                    bModoFraccion = False
-                    ' Borra display en proximo ingreso de un numero
-                    bFlagBorraDisplayEnProximoIngreso = True
-                    ' pasa el foco al elemento tb_Display (barra parpadeando)
-                    tbDisplay.Select()
-                    Exit Sub
-                End If
-                'modo fracción, guardar en memoria formato decimal
-                AlmacenaOperandoFraccionUnoEnMemoria()
-
-                'Borra pantalla
-                Reinicia_tb_Display()
-                MuestraCeroEnDisplay()
-                'Resetea el contador de fracciones
-                iContadorBarraFraccional = 0
-            Else
-                'modo decimal, guardar en memoria formato decimal
-                AlmacenaOperando_aEnMemoria()
-            End If
-            ' Avisa que hay una operacion en curso
-            bOperacionEnCurso = True
-        End If
-        ' define la operación a realizar como resta
-        sOperacion = "sustraccion"
-
-        If bModoFraccion = True Then
-            'modo fracción
-
-            'habilita almacenar el proximo numero Fraccion Dos
-            bFlagAlmacenarOperandoFraccionDos = True
-        Else
-            ' modo decimal...
-            ' habilita almacenar el proximo numero como operando b 
-            bFlagAlmacenarOperando_b = True
-        End If
-
-        ' borra el display
-        bFlagBorraDisplayEnProximoIngreso = True
-        ' pasa el foco al elemento tb_Display (barra parpadeando)
-        tbDisplay.Select()
+        ' Evento por operacion, no por ingreso de numero        
+        bNuevaOperacion = True
+        sBoton = "boton_-"
+        SM_Calculadora()
     End Sub
-
     Private Sub btnMultiplicar_Click(sender As Object, e As EventArgs) Handles btnMultiplicar.Click
-        ' Si no hay una operacion previa en curso, se guarda en memoria
-        ' el valor que se encuentre en display, y se asigna la operacion
-        ' sino solamente se modificará la operación a realizar con el operando
-        ' en memoria.
-        If bOperacionEnCurso = False Then
-            ' Si no se ingreso un numero nuevo (entonces en display esta el resultado
-            ' de una operación anterior)
-            AlmacenaOperando_aEnMemoria()
-            ' Avisa que hay una operacion en curso
-            bOperacionEnCurso = True
-        End If
-        ' define la operación a realizar como multiplicacion
-        sOperacion = "multiplicacion"
-        ' borra el display, en cuanto ingrese un número (código en subrutinas de número)
-        bFlagBorraDisplayEnProximoIngreso = True
-        ' habilita almacenar el proximo numero como operando b  
-        bFlagAlmacenarOperando_b = True
-        ' pasa el foco al elemento tb_Display (barra parpadeando)
-        tbDisplay.Select()
+        ' Evento por operacion, no por ingreso de numero        
+        bNuevaOperacion = True
+        sBoton = "boton_x"
+        SM_Calculadora()
     End Sub
-
     Private Sub btnDividir_Click(sender As Object, e As EventArgs) Handles btnDividir.Click
-        ' Si no hay una operacion previa en curso, se guarda en memoria
-        ' el valor que se encuentre en display, y se asigna la operacion
-        ' sino solamente se modificará la operación a realizar con el operando
-        ' en memoria.
-        If bOperacionEnCurso = False Then
-            ' Si no se ingreso un numero nuevo (entonces en display esta el resultado
-            ' de una operación anterior)
-            AlmacenaOperando_aEnMemoria()
-            ' Avisa que hay una operacion en curso
-            bOperacionEnCurso = True
-        End If
-        ' define la operación a realizar como division
-        sOperacion = "division"
-        ' borra el display
-        bFlagBorraDisplayEnProximoIngreso = True
-        ' habilita almacenar el proximo numero como operando b 
-        bFlagAlmacenarOperando_b = True
-        ' pasa el foco al elemento tb_Display (barra parpadeando)
-        tbDisplay.Select()
     End Sub
-
-    Private Sub btnClearOp_Click(sender As Object, e As EventArgs) Handles btnClearOp.Click
-        ' borra operandos en memoria
-        BorraMemoriaOperandos()
-        ' borra operación
-        bOperacionEnCurso = False
-        sOperacion = ""
-        ' borra el display y flag punto decimal presente
-        Reinicia_tb_Display()
-        MuestraCeroEnDisplay()
-        ' Esta subrutina es más completa, verificar.
-        ReinicioVariables()
-        ' pasa el foco al elemento tb_Display (barra parpadeando)
-        tbDisplay.Select()
-    End Sub
-
     Private Sub btnPorcentaje_Click(sender As Object, e As EventArgs) Handles btnPorcentaje.Click
-        bCalcularPorcentaje = True
-        EjecutaOperaciones()
+        'Se pulsó botón para nueva operación
+        bNuevaOperacion = True
+        sBoton = "boton_%"
+        SM_Calculadora()
     End Sub
-
     Private Sub btnPotenciar_Click(sender As Object, e As EventArgs) Handles btnPotenciar.Click
-        ' Si no hay una operacion previa en curso, se guarda en memoria
-        ' el valor que se encuentre en display, y se asigna la operacion
-        ' sino solamente se modificará la operación a realizar con el operando
-        ' en memoria.
-        If bOperacionEnCurso = False Then
-            ' Si no se ingreso un numero nuevo (entonces en display esta el resultado
-            ' de una operación anterior)
-            AlmacenaOperando_aEnMemoria()
-            ' Avisa que hay una operacion en curso
-            bOperacionEnCurso = True
-        End If
-        ' define la operación a realizar como suma
-        sOperacion = "potenciacion"
-        ' habilita almacenar el proximo numero como operando b 
-        bFlagAlmacenarOperando_b = True
-        ' Borra display en proximo ingreso de un numero
-        bFlagBorraDisplayEnProximoIngreso = True
-        ' pasa el foco al elemento tb_Display (barra parpadeando)
-        tbDisplay.Select()
     End Sub
-
     Private Sub btnRaizCuadrada_Click(sender As Object, e As EventArgs) Handles btnRaizCuadrada.Click
-        ' Si no hay una operacion previa en curso, se guarda en memoria
-        ' el valor que se encuentre en display, y se asigna la operacion
-        ' sino solamente se modificará la operación a realizar con el operando
-        ' en memoria.
-        If bOperacionEnCurso = False Then
-            ' Si no se ingreso un numero nuevo (entonces en display esta el resultado
-            ' de una operación anterior)
-            AlmacenaOperando_aEnMemoria()
-            ' Avisa que hay una operacion en curso
-            bOperacionEnCurso = True
-        End If
-        ' define la operación a realizar como suma
-        sOperacion = "RaizCuadrada"
-        ' y ejecuta la operación
-        EjecutaOperaciones()
     End Sub
-
     Private Sub btnFraccion_Click(sender As Object, e As EventArgs) Handles btnFraccion.Click
         '--------------------------------------------------------------
         'NO se permite el uso del separador decimal en modo fracción.
@@ -367,590 +103,254 @@ Public Class Form1
         ' pasa el foco al elemento tb_Display (barra parpadeando)
         tbDisplay.Select()
     End Sub
-
     Private Sub btnClearEntry_Click(sender As Object, e As EventArgs) Handles btnClearEntry.Click
+        '######
+        ' REVISAR genera error por barra de fraccion
+        '######
+        '' borra el display y flag punto decimal presente
+        'Reinicia_tb_Display()
+        'MuestraCeroEnDisplay()
+        '' pasa el foco al elemento tb_Display (barra parpadeando)
+        'tbDisplay.Select()
+    End Sub
+    Private Sub btnClearOp_Click(sender As Object, e As EventArgs) Handles btnClearOp.Click
+        ' borra operandos en memoria
+        BorraMemoriaOperandos()
+        ' borra operación
+        bOperacionEnCurso = False
+        sOperacion = ""
         ' borra el display y flag punto decimal presente
         Reinicia_tb_Display()
         MuestraCeroEnDisplay()
+        ' Esta subrutina es más completa, verificar.
+        ReinicioVariables()
         ' pasa el foco al elemento tb_Display (barra parpadeando)
         tbDisplay.Select()
     End Sub
     Private Sub btnResultado_Click(sender As Object, e As EventArgs) Handles btnResultado.Click
-        EjecutaOperaciones()
-        ' Se generó un resultado
-        bResultadoEnDisplay = True
-        ' bOperando_a_EnMemoria = False
-    End Sub
-
-
-    '=========================================================================================================
-    ' CODIGO ASIGNADO A BOTONES NUMERICOS Y SEPARADOR DECIMAL
-    '=========================================================================================================
-    Private Sub btnSeparadorDecimal_Click(sender As Object, e As EventArgs) Handles btnSeparadorDecimal.Click
-        CodigoSeparadorDecimal()
-    End Sub
-    Private Sub btnCero_Click(sender As Object, e As EventArgs) Handles btnCero.Click
-        CodigoNumeroCero()
-    End Sub
-    Private Sub btnUno_Click(sender As Object, e As EventArgs) Handles btnUno.Click
-        CodigoNumeroUno()
-    End Sub
-    Private Sub btnDos_Click(sender As Object, e As EventArgs) Handles btnDos.Click
-        CodigoNumeroDos()
-    End Sub
-    Private Sub btnTres_Click(sender As Object, e As EventArgs) Handles btnTres.Click
-        CodigoNumeroTres()
-    End Sub
-    Private Sub btnCuatro_Click(sender As Object, e As EventArgs) Handles btnCuatro.Click
-        CodigoNumeroCuatro()
-    End Sub
-    Private Sub btnCinco_Click(sender As Object, e As EventArgs) Handles btnCinco.Click
-        CodigoNumeroCinco()
-    End Sub
-    Private Sub btnSeis_Click(sender As Object, e As EventArgs) Handles btnSeis.Click
-        CodigoNumeroSeis()
-    End Sub
-    Private Sub btnSiete_Click(sender As Object, e As EventArgs) Handles btnSiete.Click
-        CodigoNumeroSiete()
-    End Sub
-    Private Sub btnOcho_Click(sender As Object, e As EventArgs) Handles btnOcho.Click
-        CodigoNumeroOcho()
-    End Sub
-    Private Sub btnNueve_Click(sender As Object, e As EventArgs) Handles btnNueve.Click
-        CodigoNumeroNueve()
-    End Sub
-    '=========================================================================================================
-    ' CODIGO SUBRUTINAS COMUNES TECLADO Y BOTONES
-    '=========================================================================================================
-    Sub CodigoSeparadorDecimal()
-        ' Este fragmento se ejecuta si no se encuentra en modo fracción
-        If bModoFraccion = False Then
-            VerificaBorradoDisplay()
-            ' Si no se encuentra un punto decimal presente en el numero actual
-            If bPuntoDecimalPresente = False Then
-                ' Concatena muestra el símbolo ",", a lo que ya se encontraba en el textbox del display
-                tbDisplay.Text = tbDisplay.Text & ","
-                ' Indica que hay un punto decimal
-                bPuntoDecimalPresente = True
-                ' Indica que no es cero el dígito
-                bDigitoActualContieneCero = False
-                ' Indica que no es el primero
-                bPosicionDigitoActualEsElPrimero = False
-                ' Se Ingresó un número o simbolo
-                bResultadoEnDisplay = False
-            End If
-        End If
-        tbDisplay.Select()
-    End Sub
-
-    Sub CodigoNumeroCero()
-        ' Si el modo no es fracción, se verifica posición del dígito y se borra el display
-        If bModoFraccion = False Then
-            VerificaBorradoDisplay()
-        End If
-        ' Si el modo es fracción, no se borra el display cada vez que se ingresa
-        ' un número, porque ahora el operando es una fracción que contiene varios
-        ' números y barras de fracción.
-        If bPosicionDigitoActualEsElPrimero = True Then
-            If bDigitoActualContieneCero = True Then
-                tbDisplay.Text = 0
-                bPosicionDigitoActualEsElPrimero = True
-            Else
-                ' Concatena muestra el símbolo "Numero", a lo que ya se encontraba en el textbox del display
-                tbDisplay.Text = tbDisplay.Text & 0
-                bPosicionDigitoActualEsElPrimero = False
-            End If
-        Else
-            tbDisplay.Text = tbDisplay.Text & 0
-            bPosicionDigitoActualEsElPrimero = False
-        End If
-
-        bDigitoActualContieneCero = True
-        ' Ya hay un numero en display.
-        bNumeroEn_tb_Display = True
-        ' NO es el resultado de una operacion
-        bResultadoEnDisplay = False
-        ' Numero ingresado
-        bNumeroIngresado = True
-        ' Devuelve el foco al cuadro de texto, caso contrario no se puede ingresar por teclado alfanumerico
-        ' dado que está asociado al evento de este objeto
-        tbDisplay.Select()
-    End Sub
-    Sub CodigoNumeroUno()
-        MuestraNumeroEnDisplay(1)
-        tbDisplay.Select()
-    End Sub
-    Sub CodigoNumeroDos()
-        MuestraNumeroEnDisplay(2)
-        tbDisplay.Select()
-    End Sub
-    Sub CodigoNumeroTres()
-        MuestraNumeroEnDisplay(3)
-        tbDisplay.Select()
-    End Sub
-    Sub CodigoNumeroCuatro()
-        MuestraNumeroEnDisplay(4)
-        tbDisplay.Select()
-    End Sub
-    Sub CodigoNumeroCinco()
-        MuestraNumeroEnDisplay(5)
-        tbDisplay.Select()
-    End Sub
-    Sub CodigoNumeroSeis()
-        MuestraNumeroEnDisplay(6)
-        tbDisplay.Select()
-    End Sub
-    Sub CodigoNumeroSiete()
-        MuestraNumeroEnDisplay(7)
-        tbDisplay.Select()
-    End Sub
-    Sub CodigoNumeroOcho()
-        MuestraNumeroEnDisplay(8)
-        tbDisplay.Select()
-    End Sub
-    Sub CodigoNumeroNueve()
-        MuestraNumeroEnDisplay(9)
-        tbDisplay.Select()
+        'Se pulsó botón para nueva operación
+        bNuevaOperacion = True
+        sBoton = "boton_="
+        SM_Calculadora()
     End Sub
 
 
     '//////////////////////////////////////
-    ' SUBRUTINAS NIVELES INFERIORES
+    ' SUBRUTINAS
     '//////////////////////////////////////
-    Sub EjecutaOperaciones()
-        Dim F1a, F1b, F1c As Integer
-        Dim F2a, F2b, F2c As Integer
 
-
+    Public Sub IngresoOperandoA()
+        'El operando ingresado es fracción?
 
         If bModoFraccion = True Then
-            If bFraccionErrorIngreso = True Then
-                'Si error, entonces
-                tbDisplay.Text = msgErrMat
-                'Sale del modo fraccion
-                bModoFraccion = False
-                ' Borra display en proximo ingreso de un numero
-                bFlagBorraDisplayEnProximoIngreso = True
-                ' pasa el foco al elemento tb_Display (barra parpadeando)
-                tbDisplay.Select()
-                Exit Sub
-            End If
+            '######################################################
+            ' LA VERIFICACION DEBE HACERSE EN SM_Calculadora()
+            '######################################################
+            'verifica que el denominador no sea cero (cond. error)
+            'Si es válido, entonces lo ingresa a memoria, sino modo error
+            VerificacionCondicionErrorFraccion()
+            'modo fracción, guardar en memoria formato decimal
+            AlmacenaOperandoDisplayFraccionEnMemoria(iFraccionA(0), iFraccionA(1), iFraccionA(2))
+            ' Indica que es primer operando es fracción
+            bPriOperTipoFraccion = True
+            'reinicia modo ingreso, es decimal por defecto.
+            bModoFraccion = False
+            ' Separador decimal se encuentra desafectado.
+            bSeparadorDecimalDeshabilitado = True
+            '###################################################
+            'Borra pantalla
+            Reinicia_tb_Display()
+            MuestraCeroEnDisplay()
+            '#######################################################
+        Else
+            'modo decimal, guardar en memoria formato decimal
+            AlmacenaOperandoDisplayEnteroEnMemoria("A")
+            'Indica que es primer operando es entero (en principio lo trunca)
+            bPriOperTipoFraccion = False
+        End If
+        'OPA leido de pantalla, no copiado de resultado operacion anterior.
+        bOperando_aCopiadoDeOperando_r = False
 
-            'modo fracción en el segundo operando
+        'Resetea el contador de fracciones
+        'Para poder ingresar una nueva fracción.
+        iContadorBarraFraccional = 0
+
+    End Sub
+    Public Sub FinalizaOperacionEjecucion()
+
+        ' Almacena formato operacion previa
+        bOperacionFraccionalPrevia = bOperacionFraccional
+
+        If bOperacionFraccional = True Then
+
+            ' Inicializa variables de operaciones con fracciones
+
+            ' Si queda el resultado en display, se debe recordar que es
+            ' una fracciòn
+
+            bFlagAlmacenarOperandoFraccionDos = False
+            'bBarraFraccionPresente = False
+            'bModoFraccion = False
+            bIngresoComponenteFraccion = False
+            bIngresoOperandoFraccionUno = False
+            bIngresoOperandoFraccionDos = False
+            'iContadorBarraFraccional = 0
+            bFraccionErrorIngreso = False
+            ' almacena el resultado como el operando a
+            'iFraccionA(0) = 0
+            'iFraccionA(1) = F2b
+            'iFraccionA(2) = F2c
+
+            ' ####ya realizada la operacion, no se guarda en memoria
+            'bOperacionEnCurso = False
+            'Reinicia formato salida
+            'bOperacionFraccional = False
+            '### Se ejecutó operación, esperar a nueva o repetir anterior
+            'bNuevaOperacion = False
+            '### reinicializa estados de primer dígito y punto decimal presente
+            'Reinicia_tb_Display()
+            '### pasa el foco al elemento tb_Display (barra parpadeando)
+            'tbDisplay.Select()
+        Else
+            ' almacena el resultado como el operando a
+            'AlmacenaOperandoDisplayEnMemoria("A")
+            ' ya realizada la operacion, no se guarda en memoria
+            bOperacionEnCurso = False
+            'Reinicia formato salida
+            'bOperacionFraccional = False
+            ' Se ejecutó operación, esperar a nueva o repetir anterior
+            bNuevaOperacion = False
+            ' reinicializa estados de primer dígito y punto decimal presente
+            Reinicia_tb_Display()
+            ' pasa el foco al elemento tb_Display (barra parpadeando)
+            tbDisplay.Select()
+
+        End If
+    End Sub
+    Sub VerificacionCondicionErrorFraccion()
+        If bFraccionErrorIngreso = True Then
+            'Si error, entonces
+            tbDisplay.Text = msgErrMat
+            'Sale del modo fraccion
+            bModoFraccion = False
+            ' Borra display en proximo ingreso de un numero
+            bFlagBorraDisplayEnProximoIngreso = True
+            ' pasa el foco al elemento tb_Display (barra parpadeando)
+            tbDisplay.Select()
+            Exit Sub
+        End If
+    End Sub
+    Public Sub NivelaTipoDeOperandos()
+        'Ingreso el valor del display
+        'Si es fraccion
+        If bModoFraccion = True Then
+            'y no hay error 
+            VerificacionCondicionErrorFraccion()
+
+            'Lo guarda en memoria (fraccion)
+            AlmacenaOperandoDisplayFraccionEnMemoria(iFraccionB(0), iFraccionB(1), iFraccionB(2))
+            ' Indica que es segundo operando es fracción
+            bSegOperTipoFraccion = True
+            'reinicia modo ingreso, es decimal por defecto.
+            bModoFraccion = False
+            ' Separador decimal se encuentra desafectado.
+            bSeparadorDecimalDeshabilitado = True
+
+            '-------------------------------------------------------------
+            'modo fracción en el segundo operando, primer operario entero
+            '-------------------------------------------------------------
             If bPriOperTipoFraccion = False Then
                 ' Si el primer operando era un decimal:
-                ' 1.- El formato se debe cambiar a fracción            
+                ' 1.- El formato del primer operando se debe cambiar a fracción
+                '##################
+                'ver de truncar
+                '##################
                 iFraccionA(0) = 0
                 iFraccionA(1) = dOperando_a
                 iFraccionA(2) = 1
                 ' 2.- Se debe cargar el segundo operando fraccional
-                AlmacenaOperandoFraccionDosEnMemoria()
+                ' AlmacenaOperandoFraccionDosEnMemoria()
             End If
 
-            'modo fracción desde el primer operando
-            'habilita almacenar el proximo numero Fraccion Dos
-            If bFlagAlmacenarOperandoFraccionDos = True Then
-                    ' deshabilita almacenar el proximo numero como operando b 
-                    bFlagAlmacenarOperandoFraccionDos = False
-                    'modo fracción, guardar en memoria formato decimal
-                    AlmacenaOperandoFraccionDosEnMemoria()
-                End If
-                F1a = iFraccionA(0)
-                F1b = iFraccionA(1)
-                F1c = iFraccionA(2)
 
-                F2a = iFraccionB(0)
-                F2b = iFraccionB(1)
-                F2c = iFraccionB(2)
-            Else
-                'modo decimal, guardar en memoria formato decimal
-                If bFlagAlmacenarOperando_b = True Then
-                ' deshabilita almacenar el proximo numero como operando b 
-                bFlagAlmacenarOperando_b = False
-
-                ' Almacena operando b en memoria (el número del display, una sola vez,
-                ' excepto que ingrese nueva operacion
-                AlmacenaOperando_bEnMemoria()
-            End If
-        End If
-
-
-        ' de acuerdo a la variable "operación", seleccionamos que haremos con los operandos
-        Select Case sOperacion
-
-            Case "adicion"
-                If bModoFraccion = True Then
-
-                    Dim res As Double
-
-                    F1b = F1a * F1c + F1b
-                    F2b = F2a * F2c + F2b
-
-                    F2b = (F2c * F1b) + (F1c * F2b)
-                    F2c = F1c * F2c
-
-                    ' simplificación básica
-
-                    ' obtiene el módulo de los componentes (enteros) de la fraccion convertidos a
-                    ' doble, si son divisibles, luego se toma como factor comun
-                    res = CDbl(F2b) Mod CDbl(F2c)
-
-                    ' y se calculan los componentes de la fracción simplificados
-                    ' si el divisor es exacto para ambos
-                    If res <> 0D Then
-                        F2b = CInt(CDbl(F2b) / res)
-                        F2c = CInt(CDbl(F2c) / res)
-                    End If
-
-                    'Se muestra en display
-                    tbDisplay.Text = F2b & "∟" & F2c
-
-                Else
-                    If bCalcularPorcentaje = True Then
-                        ' realiza la operacion de TASA DE CAMBIO (cociente entre (suma aritmetica de operandos)
-                        ' y operando b y luego multiplica por cien)
-                        tbDisplay.Text = (((dOperando_a + dOperando_b) / dOperando_b) * 100) & " %"
-                        ' fin calculo de porcentaje
-                        bCalcularPorcentaje = False
-                        sOperacion = ""
-                    Else
-                        ' realiza la operacion de suma aritmetica
-                        tbDisplay.Text = dOperando_a + dOperando_b
-                    End If
-                End If
-
-            Case "sustraccion"
-                If bModoFraccion = True Then
-
-                    Dim res As Double
-
-                    F1b = F1a * F1c + F1b
-                    F2b = F2a * F2c + F2b
-
-                    F2b = (F2c * F1b) - (F1c * F2b)
-                    F2c = F1c * F2c
-
-                    ' simplificación básica
-
-                    ' obtiene el módulo de los componentes (enteros) de la fraccion convertidos a
-                    ' doble, si son divisibles, luego se toma como factor comun
-                    res = CDbl(F2b) Mod CDbl(F2c)
-
-                    ' y se calculan los componentes de la fracción simplificados
-                    ' si el divisor es exacto para ambos
-                    If res <> 0D Then
-                        F2b = CInt(CDbl(F2b) / res)
-                        F2c = CInt(CDbl(F2c) / res)
-                    End If
-
-                    'Se muestra en display
-                    tbDisplay.Text = F2b & "∟" & F2c
-
-                Else
-                    If bCalcularPorcentaje = True Then
-                        ' realiza la operacion de TASA DE CAMBIO (cociente entre (suma aritmetica de operandos)
-                        ' y operando b y luego multiplica por cien)
-                        tbDisplay.Text = (((dOperando_a - dOperando_b) / dOperando_b) * 100) & " %"
-                        ' fin calculo de porcentaje
-                        bCalcularPorcentaje = False
-                        sOperacion = ""
-                    Else
-                        ' realiza la operacion de resta aritmetica
-                        tbDisplay.Text = dOperando_a - dOperando_b
-                    End If
-                End If
-
-            Case "division"
-                ' Si el segundo operando es cero, muestra "Error" en display
-                If dOperando_b = 0 Then
-                    tbDisplay.Text = msgErrMat
-                Else
-                    If bCalcularPorcentaje = True Then
-                        ' realiza la operacion de RELACION (division aritmetica y luego multiplica por cien)
-                        tbDisplay.Text = ((dOperando_a / dOperando_b) * 100) & " %"
-                        ' fin calculo de porcentaje
-                        bCalcularPorcentaje = False
-                        sOperacion = ""
-                    Else
-                        ' realiza la operacion de division aritmetica
-                        tbDisplay.Text = dOperando_a / dOperando_b
-                    End If
-                End If
-
-            Case "multiplicacion"
-                If bCalcularPorcentaje = True Then
-                    ' realiza la operacion de PORCENTAJE (producto aritmetico y luego divide por cien)
-                    tbDisplay.Text = ((dOperando_a * dOperando_b) / 100) & " %"
-                    ' fin calculo de porcentaje
-                    bCalcularPorcentaje = False
-                    sOperacion = ""
-                Else
-                    ' realiza la operacion de producto aritmetico
-                    tbDisplay.Text = dOperando_a * dOperando_b
-                End If
-
-            Case "potenciacion"
-                If bCalcularPorcentaje = True Then
-                    tbDisplay.Text = msgErrStx
-                    bCalcularPorcentaje = False
-                    sOperacion = ""
-                Else
-                    ' realiza la operacion de potenciación
-                    tbDisplay.Text = Math.Pow(dOperando_a, dOperando_b)
-                End If
-
-            Case "RaizCuadrada"
-                If bCalcularPorcentaje = True Then
-                    tbDisplay.Text = "ERROR de sintaxis"
-                    bCalcularPorcentaje = False
-                    sOperacion = ""
-                Else
-                    ' realiza la operacion de potenciación
-                    tbDisplay.Text = Math.Sqrt(dOperando_a)
-                    sOperacion = ""
-                End If
-        End Select
-
-        If bModoFraccion = True Then
-            ' ya realizada la operacion, no se guarda en memoria
-            bOperacionEnCurso = False
-
-            ' Inicializa variables de operaciones con fracciones
-            bFlagAlmacenarOperandoFraccionDos = False
-            bBarraFraccionPresente = False
-            bModoFraccion = False
-            bIngresoComponenteFraccion = False
-            bIngresoOperandoFraccionUno = False
-            bIngresoOperandoFraccionDos = False
-            iContadorBarraFraccional = 0
-            bFraccionErrorIngreso = False
-
-            ' reinicializa estados de primer dígito y punto decimal presente
-            Reinicia_tb_Display()
-            ' pasa el foco al elemento tb_Display (barra parpadeando)
-            tbDisplay.Select()
+            'Las operaciones a ejecutar son con ambos operarios expresados en fracciones
+            bOperacionFraccional = True
         Else
-            ' almacena el resultado como el operando a
-            AlmacenaOperando_aEnMemoria()
-            ' ya realizada la operacion, no se guarda en memoria
-            bOperacionEnCurso = False
-            ' reinicializa estados de primer dígito y punto decimal presente
-            Reinicia_tb_Display()
-            ' pasa el foco al elemento tb_Display (barra parpadeando)
-            tbDisplay.Select()
+            ' Almacena operando b en memoria (el número del display, una sola vez,
+            ' excepto que ingrese nueva operacion
+            AlmacenaOperandoDisplayEnteroEnMemoria("B")
+            'Las operaciones a ejecutar son con ambos operarios expresados en decimales
+            bOperacionFraccional = False
 
-        End If
-    End Sub
-
-    Sub VerificaBorradoDisplay()
-        ' Si el primer digito a ingresar es cero, no se concatena 
-        ' si no es el primero, se concatena (el primero puede ser un punto)
-        If bFlagBorraDisplayEnProximoIngreso = True Then
-            ' reinicializa estados de primer dígito y punto decimal presente
-            Reinicia_tb_Display()
-            MuestraCeroEnDisplay()
-            bFlagBorraDisplayEnProximoIngreso = False
-        End If
-    End Sub
-    Sub MuestraNumeroEnDisplay(Numero As Integer)
-        ' Si el modo no es fracción, se verifica posición del dígito y se borra el display
-        If bModoFraccion = False Then
-            VerificaBorradoDisplay()
-        End If
-        ' Si el modo es fracción, no se borra el display cada vez que se ingresa
-        ' un número, porque ahora el operando es una fracción que contiene varios
-        ' números y barras de fracción.
-
-        If bPosicionDigitoActualEsElPrimero = True Then
-            If bDigitoActualContieneCero = True Then
-                tbDisplay.Text = Numero
-                bDigitoActualContieneCero = False
-                bPosicionDigitoActualEsElPrimero = True
-            Else
-                ' Concatena muestra el símbolo "Numero", a lo que ya se encontraba en el textbox del display
-                tbDisplay.Text = tbDisplay.Text & Numero
-                bDigitoActualContieneCero = False
-                bPosicionDigitoActualEsElPrimero = False
-            End If
-        Else
-            tbDisplay.Text = tbDisplay.Text & Numero
-            bDigitoActualContieneCero = False
-            bPosicionDigitoActualEsElPrimero = False
-        End If
-
-        ' Ya hay un numero en display.
-        bNumeroEn_tb_Display = True
-        ' NO es el resultado de una operacion
-        bResultadoEnDisplay = False
-        ' Numero ingresado
-        bNumeroIngresado = True
-    End Sub
-    Sub Reinicia_tb_Display()
-        ' Sin punto decimal
-        bPuntoDecimalPresente = False
-        ' Posición digito ingresado = primero
-        bPosicionDigitoActualEsElPrimero = True
-    End Sub
-    Sub MuestraCeroEnDisplay()
-        tbDisplay.Text = 0
-        bDigitoActualContieneCero = True
-    End Sub
-    Sub AlmacenaOperando_aEnMemoria()
-        ' almacena como primer operando al número contenido en el cuadro de texto 
-        ' convertido previamente de texto a número.
-        dOperando_a = Convierte(tbDisplay.Text)
-        ' operando en memoria
-        bOperando_a_EnMemoria = True
-    End Sub
-    Sub AlmacenaOperando_bEnMemoria()
-        ' almacena como primer operando al número contenido en el cuadro de texto 
-        ' convertido previamente de texto a número.
-        dOperando_b = Convierte(tbDisplay.Text)
-        ' operando en memoria
-        bOperando_b_EnMemoria = True
-    End Sub
-
-
-
-
-    Sub AlmacenaOperandoFraccionUnoEnMemoria()
-
-        Dim iLargoCadena As Integer
-        Dim sNumeroFormatoTexto As String
-
-        Dim iPosBarraUno As Integer
-        Dim iPosBarraDos As Integer
-
-
-
-        ' Para saber cuantas barras de fraccion, leemos iContadorBarraFraccional
-        ' y luego podemos conocer cuantos números y tipo de fraccion tenemos
-        If iContadorBarraFraccional <> 0 Then
-            iLargoCadena = Len(tbDisplay.Text)
-
-            ' En este segmento obtengo las posiciones de los separadores de fraccion
-            ' primera posición
-            iPosBarraUno = InStr(tbDisplay.Text, "∟", CompareMethod.Text)
-            ' Segunda posición (si no hay, indicará cero)
-            iPosBarraDos = InStr((iPosBarraUno + 1), tbDisplay.Text, "∟", CompareMethod.Text)
-            ' En este segmento debo leer los dos o tres números de la fraccion de acuerdo 
-            ' a iContadorBarraFraccional
-
-            ' Primer número
-            ' Obtiene la cadena
-            sNumeroFormatoTexto = Mid(tbDisplay.Text, 1, (iPosBarraUno - 1))
-            ' Y la convierte a número
-            iFraccionA(0) = Val(sNumeroFormatoTexto)
-
-        Else
-            ' Es decimal, lo convierte a número, luego a formato entero y luego lo trunca
-            iFraccionB(1) = Math.Truncate(CInt(Convierte(tbDisplay.Text)))
-        End If
-
-        Select Case iContadorBarraFraccional
-            Case 0
-                ' Es un número entero
-                ' lo acomoda al formato b∟c = b∟1
-                iFraccionA(0) = 0
-                iFraccionA(2) = 1
-
-            Case 1
-                ' Acomoda la fracción para que ocupe b∟c, y a = 0
-                iFraccionA(1) = iFraccionA(0)
-                iFraccionA(0) = 0
-                ' Si hay una sola barra, es de dos números
-                sNumeroFormatoTexto = Mid(tbDisplay.Text, iPosBarraUno + 1, iLargoCadena)
-                ' convierte a número
-                iFraccionA(2) = Val(sNumeroFormatoTexto)
-
-            Case 2
-                ' Si hay dos barras, es de tres números
-                sNumeroFormatoTexto = Mid(tbDisplay.Text, iPosBarraUno + 1, (iPosBarraDos - iPosBarraUno) - 1)
-                ' convierte a número
-                iFraccionA(1) = Val(sNumeroFormatoTexto)
-                sNumeroFormatoTexto = Mid(tbDisplay.Text, iPosBarraDos + 1, iLargoCadena)
-                ' convierte a número
-                iFraccionA(2) = Val(sNumeroFormatoTexto)
-            Case Else
-                'mensaje error, no debería haber incongruencias.
-        End Select
-
-        'finalmente, chequea que el denominador sea distinto de cero
-        If iFraccionA(2) = 0 Then
-            bFraccionErrorIngreso = True
-        End If
-
-    End Sub
-
-    Sub AlmacenaOperandoFraccionDosEnMemoria()
-
-        Dim iLargoCadena As Integer
-        Dim sNumeroFormatoTexto As String
-
-        Dim iPosBarraUno As Integer
-        Dim iPosBarraDos As Integer
-
-
-
-        ' Para saber cuantas barras de fraccion, leemos iContadorBarraFraccional
-        ' y luego podemos conocer cuantos números y tipo de fraccion tenemos
-        ' Si es distinto de cero es una fracción, sino es un entero
-        If iContadorBarraFraccional <> 0 Then
-
-            iLargoCadena = Len(tbDisplay.Text)
-
-            ' En este segmento obtengo las posiciones de los separadores de fraccion
-            ' primera posición
-            iPosBarraUno = InStr(tbDisplay.Text, "∟", CompareMethod.Text)
-            ' Segunda posición (si no hay, indicará cero)
-            iPosBarraDos = InStr((iPosBarraUno + 1), tbDisplay.Text, "∟", CompareMethod.Text)
-            ' En este segmento debo leer los dos o tres números de la fraccion de acuerdo 
-            ' a iContadorBarraFraccional
-
-            ' Primer número
-            ' Obtiene la cadena
-            sNumeroFormatoTexto = Mid(tbDisplay.Text, 1, (iPosBarraUno - 1))
-        Else
-            ' Es decimal, lo convierte a número, luego a formato entero y luego lo trunca
-            iFraccionB(1) = Math.Truncate(CInt(Convierte(tbDisplay.Text)))
-        End If
-
-
-
-        ' Y la convierte a número
-        iFraccionB(0) = Val(sNumeroFormatoTexto)
-
-        Select Case iContadorBarraFraccional
-            Case 0
-                ' Es un número entero
-                ' lo acomoda al formato b∟c = b∟1
+            ' End If
+            '#################################################
+            If bPriOperTipoFraccion = True Then
+                ' Si el primer operando era un decimal:
+                ' 1.- El formato del primer operando se debe cambiar a fracción
+                '##################
+                'ver de truncar
+                '##################
                 iFraccionB(0) = 0
+                iFraccionB(1) = dOperando_b
                 iFraccionB(2) = 1
-
-            Case 1
-                ' Si hay una sola barra, es de dos números
-                ' Acomoda la fracción para que ocupe b∟c, y a = 0
-                iFraccionB(1) = iFraccionB(0)
-                iFraccionB(0) = 0
-                sNumeroFormatoTexto = Mid(tbDisplay.Text, iPosBarraUno + 1, iLargoCadena)
-                ' convierte a número
-                iFraccionB(2) = Val(sNumeroFormatoTexto)
-            Case 2
-                ' Si hay dos barras, es de tres números
-                sNumeroFormatoTexto = Mid(tbDisplay.Text, iPosBarraUno + 1, (iPosBarraDos - iPosBarraUno) - 1)
-                ' convierte a número
-                iFraccionB(1) = Val(sNumeroFormatoTexto)
-                sNumeroFormatoTexto = Mid(tbDisplay.Text, iPosBarraDos + 1, iLargoCadena)
-                ' convierte a número
-                iFraccionB(2) = Val(sNumeroFormatoTexto)
-            Case Else
-                'mensaje error, no debería haber incongruencias.
-        End Select
-        'finalmente, chequea que el denominador sea distinto de cero
-        If iFraccionB(2) = 0 Then
-            bFraccionErrorIngreso = True
+                ' 2.- Se debe cargar el segundo operando fraccional
+                ' AlmacenaOperandoFraccionDosEnMemoria()
+                ' Indica que es segundo operando es fracción
+                bSegOperTipoFraccion = True
+                'reinicia modo ingreso, es decimal por defecto.
+                bModoFraccion = False
+                ' Separador decimal se encuentra desafectado.
+                bSeparadorDecimalDeshabilitado = True
+                'Las operaciones a ejecutar son con ambos operarios expresados en fracciones
+                bOperacionFraccional = True
+            End If
         End If
 
+    End Sub
+    Public Sub CopiaResultadoEnOpA()
+        'sino, copia resultado en operando a
+        If bOperacionFraccional = True Then
+            iFraccionA(0) = iFraccionR(0)
+            iFraccionA(1) = iFraccionR(1)
+            iFraccionA(2) = iFraccionR(2)
+            'indica primer operando fraccion
+            bPriOperTipoFraccion = True
+            '## agregado, se producia error al multiplicar
+            'Resetea el contador de fracciones
+            'Para poder ingresar una nueva fracción.
+            iContadorBarraFraccional = 0
+        Else
+            'indica primer operando entero
+            bPriOperTipoFraccion = False
+            'copia el valor
+            dOperando_a = dOperando_r
+        End If
+    End Sub
+    Public Sub CopiaResultadoEnOpA_REV_2()
+        If bResultadoTipoFraccion = True Then
+            'iFraccionA(0) = 0
+            iFraccionA(0) = iFraccionR(0)
+            iFraccionA(1) = iFraccionR(1)
+            iFraccionA(2) = iFraccionR(2)
+            'indica primer operando fraccion
+            bPriOperTipoFraccion = True
+            'verifica que no haya cero en el denominador
+            If iFraccionA(2) = 0 Then
+                bFraccionErrorIngreso = True
+            End If
+            '## agregado, se producia error al multiplicar
+            'Resetea el contador de fracciones
+            'Para poder ingresar una nueva fracción.
+            iContadorBarraFraccional = 0
+        Else
+            'indica primer operando entero
+            bPriOperTipoFraccion = False
+            'copia el valor
+            dOperando_a = dOperando_r
+            ' operando en memoria
+            bOperando_a_EnMemoria = True
+        End If
+        bOperando_aCopiadoDeOperando_r = True
     End Sub
     Sub BorraMemoriaOperandos()
         ' almacena "0" en memoria a
@@ -961,7 +361,6 @@ Public Class Form1
         bOperando_a_EnMemoria = False
         bOperando_b_EnMemoria = False
     End Sub
-
     Sub ReinicioVariables()
         ' No hay operaciones en curso
         bOperacionEnCurso = False
@@ -976,7 +375,7 @@ Public Class Form1
         ' No borra pantalla en proximo ingreso
         bFlagBorraDisplayEnProximoIngreso = False
         ' borra almacenar operando b
-        bFlagAlmacenarOperando_b = False
+        'bFlagAlmacenarOperando_b = False
         ' borra operacion
         sOperacion = ""
         ' Inicializa calcular porcentajer
@@ -994,11 +393,116 @@ Public Class Form1
         bResultadoEnDisplay = False
         ' Flag de ingreso numero
         bNumeroIngresado = False
+        bSeparadorDecimalIngresado = False
         ' Indico que los operandos inicialmente son del tipo entero, no fraccion
         bPriOperTipoFraccion = False
         bSegOperTipoFraccion = False
-
+        bSeparadorDecimalDeshabilitado = False
+        bOperacionFraccional = False
+        bResultadoTipoFraccion = False
+        bOperando_aCopiadoDeOperando_r = False
+        bCalcPorcentajeExtension = False
+        bNuevaOperacion = False
+        bPorcentajeEnDisplay = False
+        bTasaDeCambioEnDisplay = False
+        iSMCalculadora = S000
+        sBoton = ""
     End Sub
+
+    '=========================================================================================================
+    ' CODIGO ASIGNADO A BOTONES NUMERICOS Y SEPARADOR DECIMAL
+    '=========================================================================================================
+    Private Sub btnSeparadorDecimal_Click(sender As Object, e As EventArgs) Handles btnSeparadorDecimal.Click
+        CodigoSeparadorDecimal()
+        SM_Calculadora()
+    End Sub
+    Private Sub btnCero_Click(sender As Object, e As EventArgs) Handles btnCero.Click
+        CodigoNumeroCero()
+        SM_Calculadora()
+    End Sub
+    Private Sub btnUno_Click(sender As Object, e As EventArgs) Handles btnUno.Click
+        CodigoNumeroUno()
+        SM_Calculadora()
+    End Sub
+    Private Sub btnDos_Click(sender As Object, e As EventArgs) Handles btnDos.Click
+        CodigoNumeroDos()
+        SM_Calculadora()
+    End Sub
+    Private Sub btnTres_Click(sender As Object, e As EventArgs) Handles btnTres.Click
+        CodigoNumeroTres()
+        SM_Calculadora()
+    End Sub
+    Private Sub btnCuatro_Click(sender As Object, e As EventArgs) Handles btnCuatro.Click
+        CodigoNumeroCuatro()
+        SM_Calculadora()
+    End Sub
+    Private Sub btnCinco_Click(sender As Object, e As EventArgs) Handles btnCinco.Click
+        CodigoNumeroCinco()
+        SM_Calculadora()
+    End Sub
+    Private Sub btnSeis_Click(sender As Object, e As EventArgs) Handles btnSeis.Click
+        CodigoNumeroSeis()
+        SM_Calculadora()
+    End Sub
+    Private Sub btnSiete_Click(sender As Object, e As EventArgs) Handles btnSiete.Click
+        CodigoNumeroSiete()
+        SM_Calculadora()
+    End Sub
+    Private Sub btnOcho_Click(sender As Object, e As EventArgs) Handles btnOcho.Click
+        CodigoNumeroOcho()
+        SM_Calculadora()
+    End Sub
+    Private Sub btnNueve_Click(sender As Object, e As EventArgs) Handles btnNueve.Click
+        CodigoNumeroNueve()
+        SM_Calculadora()
+    End Sub
+
+    '=========================================================================================================
+    ' CODIGO ASIGNADO A INGRESO POR TECLADO NUMERICO
+    '=========================================================================================================
+    ' El código se toma desde el evento KeyDown del textbox del display.
+    '
+    Private Sub TextBox1_KeyDown(sender As Object, e As KeyEventArgs) Handles tbDisplay.KeyDown
+        ' Si se ingresa por teclado numérico el "0"
+        'If e.KeyCode = Keys.NumPad0 Then
+        'Muestro un cero
+        'TextBox1.Text = 0
+        'o un codigo en dos lineas, forma 1
+        'TextBox1.Text= "2+2=" & VbcrLf & "4"
+        'o un codigo en dos lineas, forma 2
+        'Dim linea(2) As String
+        'linea(0) = "this is line1"
+        ' linea(1) = "this is line2"
+        ' TextBox1.Lines = linea
+        'CodigoNumeroCero()
+        'End If
+        Select Case e.KeyCode
+            Case Keys.Decimal
+                CodigoSeparadorDecimal()
+            Case Keys.NumPad0
+                CodigoNumeroCero()
+            Case Keys.NumPad1
+                CodigoNumeroUno()
+            Case Keys.NumPad2
+                CodigoNumeroDos()
+            Case Keys.NumPad3
+                CodigoNumeroTres()
+            Case Keys.NumPad4
+                CodigoNumeroCuatro()
+            Case Keys.NumPad5
+                CodigoNumeroCinco()
+            Case Keys.NumPad6
+                CodigoNumeroSeis()
+            Case Keys.NumPad7
+                CodigoNumeroSiete()
+            Case Keys.NumPad8
+                CodigoNumeroOcho()
+            Case Keys.NumPad9
+                CodigoNumeroNueve()
+
+        End Select
+    End Sub
+
     '=========================================================================================================
     ' INICIALIZACION
     '=========================================================================================================
@@ -1015,7 +519,7 @@ Public Class Form1
     '=========================================================================================================
     ' FUNCIONES
     '=========================================================================================================
-    Private Function Convierte(ByVal Texto As String) As Double
+    Public Function Convierte(ByVal Texto As String) As Double
         ' Se busca en la cadena recibida como parámetro el caracter coma ","
         ' y se lo reemplaza por el caracter punto "." para luego convertir
         ' el número recibido en formato texto a formato valor (numérico)
